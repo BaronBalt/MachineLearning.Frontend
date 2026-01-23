@@ -1,10 +1,15 @@
-use rocket::{get, launch, routes};
-#[launch]
-fn rocket() -> _ {
-    rocket::build()
-        .mount("/", routes![root])
+use yew::{function_component, html, Html};
+
+#[function_component(App)]
+fn app() -> Html {
+    html! {
+        <main>
+            <h1>{"hello world"}</h1>
+        </main>
+    }
 }
-#[get("/hello")]
-async fn root() -> String {
-    "Hello, World".to_string()
+
+// Run with `trunk serve`
+fn main() {
+    yew::Renderer::<App>::new().render();
 }
