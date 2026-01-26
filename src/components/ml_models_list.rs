@@ -18,7 +18,7 @@ pub fn MlModelsList(MlModelListProps { ml_models, on_click }: &MlModelListProps)
     html! {
         for ml_model in ml_models {
             <p key={ml_model.id} onclick={on_select(ml_model)}>
-                {format!("Model: {}, Version: {}", ml_model.name, ml_model.version)}
+                {format!("{}, Version: {}", ml_model.name, ml_model.version)}
             </p>
         }
     }

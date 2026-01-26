@@ -7,6 +7,7 @@ use crate::services::api::fetch_ml_models;
 #[component]
 pub fn App() -> Html {
     let ml_models = use_state(|| vec![]);
+    let selected_model = use_state(|| None);
 
     {
        let ml_models = ml_models.clone();
@@ -16,8 +17,6 @@ pub fn App() -> Html {
        });
     }
 
-    let selected_model = use_state(|| None);
-
     let on_model_select = {
         let selected_model = selected_model.clone();
         Callback::from(move |ml_model: MlModel| {
@@ -25,8 +24,22 @@ pub fn App() -> Html {
         })
     };
 
+    let on_model_save = {
+        let ml_models = ml_models.clone();
+        let selected_model = selected_model.clone();
+        Callback::from(move |updated_model: MlModel| {
+            let mut list = (*ml_models).clone();
+            if let Some(pos) = list.iter().position(|m| m.id == updated_model.id) {
+                list[pos] = updated_model.clone();
+                ml_models.set(list);
+            }
+
+            selected_model.set(Some(updated_model));
+        })
+    };
+
     html! {
-        <>
+        <main class="container">
             <h1>{ "Machine Learning Frontend" }</h1>
 
             <div>
@@ -34,9 +47,13 @@ pub fn App() -> Html {
                 <MlModelsList ml_models={(*ml_models).clone()} on_click={on_model_select} />
             </div>
 
-            if let Some(ml_model) = &*selected_model {
-                <MlModelDetails ml_model={ml_model.clone()} />
-            }
-        </>
+            { (*selected_model).as_ref().map(|model| html! {
+                <MlModelDetails
+                    key={model.id.clone()}
+                    ml_model={model.clone()}
+                    on_change={on_model_save.clone()}
+                />
+            }) }
+        </main>
     }
 }

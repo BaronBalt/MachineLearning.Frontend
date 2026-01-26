@@ -1,3 +1,4 @@
+use crate::models::parameter::Parameter;
 use serde::Deserialize;
 use yew::AttrValue;
 
@@ -7,5 +8,6 @@ pub struct MlModel {
     pub name: AttrValue,
     pub description: AttrValue,
     pub version: AttrValue,
+    pub parameters: Vec<Parameter>,
     pub url: AttrValue,
 }
