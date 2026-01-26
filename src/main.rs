@@ -1,15 +1,10 @@
-use yew::{function_component, html, Html};
-
-#[function_component(App)]
-fn app() -> Html {
-    html! {
-        <main>
-            <h1>{"hello world"}</h1>
-        </main>
-    }
+mod app;
+mod models;
+mod components;
+mod services {
+    pub mod api;
 }
 
-// Run with `trunk serve`
 fn main() {
-    yew::Renderer::<App>::new().render();
+    yew::Renderer::<app::App>::new().render();
 }
