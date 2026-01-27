@@ -23,10 +23,24 @@ pub fn MlModelDetails(props: &MlModelDetailsProps) -> Html {
             on_change_prop.emit(updated_model);
         })
     };
+    let prediction = use_state(|| None::<String>);
 
     html! {
         <div>
+            <hr />
             <h3>{ &props.ml_model.name }</h3>
+            <div>
+                <label>{ "Version" }</label>
+                <select>
+                    {
+                        props.ml_model.version.iter().map(|v| {
+                            html! {
+                                <option value={v.clone()}>{ v }</option>
+                            }
+                        }).collect::<Html>()
+                    }
+                </select>
+            </div>
             <div>
                 { for props.ml_model.parameters.iter().map(|param| {
                     let on_input_change = on_input_change.clone();
@@ -36,13 +50,27 @@ pub fn MlModelDetails(props: &MlModelDetailsProps) -> Html {
                         on_input_change.emit((name.clone(), value));
                     };
                     html! {
-                        <div key={param.name.clone()} class="parameter-row">
-                            <label> { &param.name } </label>
-                            <input type="text" value={param.value.clone()} {oninput} />
+                        <div>
+                            <label>{ &param.name }</label>
+                            <input type="text" value={param.value.clone()}
+                                {oninput}
+                            />
                         </div>
                     }
                 }) }
             </div>
+            <button> {"Predict"} </button>
+
+            <hr />
+
+            <article class="prediction">
+                <header>
+                    <strong>{ "Prediction" }</strong>
+                </header>
+                <output>
+                    { prediction.as_deref().unwrap_or("—") }
+                </output>
+            </article>
         </div>
     }
 }

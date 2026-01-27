@@ -1,4 +1,3 @@
-use serde_json::json;
 use crate::models::ml_model::MlModel;
 use yew::prelude::*;
 use crate::models::parameter::Parameter;
@@ -10,6 +9,7 @@ pub fn fetch_ml_models(ml_models_state: UseStateHandle<Vec<MlModel>>, _url: &str
     /*
     use gloo_net::http::Request;
     use wasm_bindgen_futures::spawn_local;
+    use serde_json::json;
 
     let ml_models_state = ml_models_state.clone();
     let url = url.to_string();
@@ -32,7 +32,11 @@ pub fn fetch_ml_models(ml_models_state: UseStateHandle<Vec<MlModel>>, _url: &str
             id: 1,
             name: "Demo Model A".into(),
             description: "A sample ML model for demonstration.".into(),
-            version: "1.0".into(),
+            version: vec![
+                "1.0".into(),
+                "2.0".into(),
+                "3.0".into(),
+            ],
             parameters: vec![
                 Parameter { name: "learning_rate".into(), value: "0.01".into() },
                 Parameter { name: "max_depth".into(), value: "5".into() },
@@ -43,7 +47,11 @@ pub fn fetch_ml_models(ml_models_state: UseStateHandle<Vec<MlModel>>, _url: &str
             id: 2,
             name: "Demo Model B".into(),
             description: "Another sample ML model.".into(),
-            version: "1.0".into(),
+            version: vec![
+                "1.0".into(),
+                "2.0".into(),
+                "3.0".into(),
+            ],
             parameters: vec![
                 Parameter { name: "learning_rate".into(), value: "0.01".into() },
                 Parameter { name: "max_depth".into(), value: "5".into() },
@@ -54,7 +62,11 @@ pub fn fetch_ml_models(ml_models_state: UseStateHandle<Vec<MlModel>>, _url: &str
             id: 3,
             name: "Demo Model C".into(),
             description: "Yet another demo ML model.".into(),
-            version: "1.0".into(),
+            version: vec![
+                "1.0".into(),
+                "2.0".into(),
+                "3.0".into(),
+            ],
             parameters: vec![
                 Parameter { name: "learning_rate".into(), value: "0.01".into() },
                 Parameter { name: "max_depth".into(), value: "5".into() },

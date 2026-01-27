@@ -7,7 +7,7 @@ use crate::services::api::fetch_ml_models;
 #[component]
 pub fn App() -> Html {
     let ml_models = use_state(|| vec![]);
-    let selected_model = use_state(|| None);
+    let selected_model = use_state(|| None::<MlModel>);
 
     {
        let ml_models = ml_models.clone();
@@ -39,21 +39,28 @@ pub fn App() -> Html {
     };
 
     html! {
-        <main class="container">
-            <h1>{ "Machine Learning Frontend" }</h1>
+        <body>
+            <main>
+                <h1>{ "Machine Learning Frontend" }</h1>
 
-            <div>
-                <h3>{ "Models" }</h3>
-                <MlModelsList ml_models={(*ml_models).clone()} on_click={on_model_select} />
-            </div>
+                <div>
+                    <h3>{ "Models" }</h3>
 
-            { (*selected_model).as_ref().map(|model| html! {
-                <MlModelDetails
-                    key={model.id.clone()}
-                    ml_model={model.clone()}
-                    on_change={on_model_save.clone()}
-                />
-            }) }
-        </main>
+                    <MlModelsList
+                        ml_models={(*ml_models).clone()}
+                        selected_id={selected_model.as_ref().map(|m| m.id.clone())}
+                        on_change={on_model_select}
+                    />
+                </div>
+
+                { (*selected_model).as_ref().map(|model| html! {
+                    <MlModelDetails
+                        key={model.id.clone()}
+                        ml_model={model.clone()}
+                        on_change={on_model_save.clone()}
+                    />
+                }) }
+            </main>
+        </body>
     }
 }

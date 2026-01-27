@@ -7,7 +7,7 @@ pub struct MlModel {
     pub id: usize,
     pub name: AttrValue,
     pub description: AttrValue,
-    pub version: AttrValue,
+    pub version: Vec<AttrValue>,
     pub parameters: Vec<Parameter>,
     pub url: AttrValue,
 }
