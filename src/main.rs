@@ -3,6 +3,7 @@ mod models;
 mod components;
 mod services {
     pub mod api;
+    pub mod config;
 }
 
 fn main() {

@@ -1,0 +1,1 @@
+pub const API_BASE_URL: &str = "https://ml-model-maker.app.cloud.cbh.kth.se/api";

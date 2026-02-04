@@ -12,7 +12,7 @@ pub fn App() -> Html {
     {
        let ml_models = ml_models.clone();
        use_effect_with((), move |_| {
-           fetch_ml_models(ml_models, "/tutorial/data.json");
+           fetch_ml_models(ml_models, "/models");
            || ()
        });
     }

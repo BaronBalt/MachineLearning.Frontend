@@ -1,6 +1,7 @@
 use web_sys::HtmlInputElement;
 use crate::models::ml_model::MlModel;
 use yew::prelude::*;
+use crate::services::api::predict;
 
 #[derive(Properties, PartialEq)]
 pub struct MlModelDetailsProps {
@@ -24,6 +25,16 @@ pub fn MlModelDetails(props: &MlModelDetailsProps) -> Html {
         })
     };
     let prediction = use_state(|| None::<String>);
+
+    let on_click = {
+        let prediction = prediction.clone();
+        let ml_model = props.ml_model.clone();
+        let params = props.ml_model.parameters.clone();
+
+        Callback::from(move |_| {
+            predict(prediction.clone(), ml_model.clone(), params.clone(), "/predict");
+        })
+    };
 
     html! {
         <div>
@@ -59,7 +70,7 @@ pub fn MlModelDetails(props: &MlModelDetailsProps) -> Html {
                     }
                 }) }
             </div>
-            <button> {"Predict"} </button>
+            <button onclick={on_click}> {"Predict"} </button>
 
             <hr />
 
