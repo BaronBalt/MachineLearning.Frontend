@@ -2,6 +2,8 @@ use std::string::String;
 use crate::models::ml_model::MlModel;
 use yew::prelude::*;
 use crate::models::parameter::Parameter;
+use wasm_bindgen::JsValue;
+use web_sys::console;
 
 /// Fetches ML models from the given URL and updates the provided state.
 /// Currently, hardcoded for demo purposes.
@@ -81,7 +83,8 @@ pub fn fetch_ml_models(ml_models_state: UseStateHandle<Vec<MlModel>>, _url: &str
 }
 
 /// This is also hardcoded for now until backend API gets set up
-pub fn predict(predict_text_state: UseStateHandle<Option<String>>, ml_model: MlModel, params: Vec<Parameter>, _url: &str) {
+pub fn predict(predict_text_state: UseStateHandle<Option<String>>, ml_model: MlModel, version: &str, _params: Vec<Parameter>, _url: &str) {
+    console::log_1(&JsValue::from_str(&format!("Getting prediction using {} {}", ml_model.name, version)));
     let hardcoded_output = match ml_model.id {
         1 => Some("3".to_string()),
         2 => Some("2".to_string()),
