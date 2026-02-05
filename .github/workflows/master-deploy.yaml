@@ -1,12 +1,10 @@
-name: Build Docker Image
+name: Master Deploy
 
 on:
   push:
     branches:
       - main
       - master
-  pull_request:
-  workflow_dispatch:
 
 jobs:
   docker-build:
