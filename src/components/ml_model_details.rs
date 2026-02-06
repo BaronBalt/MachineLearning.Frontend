@@ -50,7 +50,7 @@ pub fn MlModelDetails(props: &MlModelDetailsProps) -> Html {
                     ml_model.clone(),
                     version.as_ref(),
                     params.clone(),
-                    "/predict"
+                    "/predict" // i am overriding this -- Theodor
                 );
             }
         })
