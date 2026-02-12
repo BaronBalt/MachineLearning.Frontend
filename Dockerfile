@@ -9,14 +9,17 @@ RUN apk add --no-cache \
     bash \
     git \
     libc-dev \
-    zlib-dev
+    zlib-dev \
+    && for p in build-base openssl-dev curl pkgconfig bash git libc-dev zlib-dev; do \
+      echo "=== $p ==="; \
+      apk info -v "$p" || apk info -W "$p" || true; \
+    done
 
 # print the version to later specify
-RUN apk add --no-cache ... \
- && apk info -v build-base openssl-dev curl pkgconfig bash git libc-dev zlib-dev
 
-RUN cargo --yes install cargo-binstall
-RUN cargo --yes binstall trunk wasm-bindgen-cli
+RUN cargo install cargo-binstall
+RUN cargo binstall trunk wasm-bindgen-cli
+
 RUN rustup target add wasm32-unknown-unknown
 
 WORKDIR /app
