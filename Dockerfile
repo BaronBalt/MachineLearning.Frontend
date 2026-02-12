@@ -3,24 +3,19 @@ FROM rust:1.91.0-alpine3.22 AS builder
 
 RUN apk add --no-cache \
     build-base \
-    openssl-dev \
+#     openssl-dev \
     curl \
-    pkgconfig \
-    bash \
-    git \
-    libc-dev \
-    zlib-dev \
-    && for p in build-base openssl-dev curl pkgconfig bash git libc-dev zlib-dev; do \
-      echo "=== $p ==="; \
-      apk info -v "$p" || apk info -W "$p" || true; \
-    done
+#     pkgconfig \
+    bash 
+#     git \ # not needed apparently 
+#     libc-dev \
+#     zlib-dev
 
-# print the version to later specify
-
-RUN cargo install cargo-binstall
-RUN cargo binstall trunk wasm-bindgen-cli
-
-RUN rustup target add wasm32-unknown-unknown
+RUN BINSTALL_VERSION=1.17.4 \
+    curl -L https://raw.githubusercontent.com/cargo-bins/cargo-binstall/main/install-from-binstall-release.sh \
+  | bash \
+ && "$CARGO_HOME/bin/cargo-binstall" trunk@0.21.14 wasm-bindgen-cli@0.2.108 --no-confirm \
+ && rustup target add wasm32-unknown-unknown
 
 WORKDIR /app
 COPY . .
