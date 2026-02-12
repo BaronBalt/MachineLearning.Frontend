@@ -28,6 +28,7 @@ jobs:
       - name: Build and push to KTH Cloud dev
         uses: docker/build-push-action@v5
         with:
+          context: .
           push: true
           tags: ${{ secrets.DOCKER_TAG_DEV }}
 
