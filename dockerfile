@@ -12,7 +12,7 @@ RUN apk add --no-cache \
     zlib-dev
 # Install trunk and wasm-bindgen-cli
 RUN cargo install cargo-binstall
-RUN cargo binstall trunk wasm-bindgen-cli
+RUN cargo binstall --yes trunk wasm-bindgen-cli
 
 # Add the wasm target BEFORE building
 RUN rustup target add wasm32-unknown-unknown
