@@ -15,23 +15,8 @@ jobs:
       - name: Checkout repo
         uses: actions/checkout@v3
 
-      # Cache Rust dependencies
-      - name: Cache Rust crates
-        uses: actions/cache@v3
-        with:
-          path: |
-            ~/.cargo/registry
-            ~/.cargo/git
-          key: rust-cargo-${{ hashFiles('**/Cargo.lock') }}
-          restore-keys: |
-            rust-cargo-
-
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v2
-
-
-      - name: Build Docker image
-        run: docker build -t frontend .
 
 
       - name: Login to KTH Cloud
