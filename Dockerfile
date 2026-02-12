@@ -11,8 +11,12 @@ RUN apk add --no-cache \
     libc-dev \
     zlib-dev
 
-RUN cargo install cargo-binstall
-RUN cargo binstall trunk wasm-bindgen-cli
+# print the version to later specify
+RUN apk add --no-cache ... \
+ && apk info -v build-base openssl-dev curl pkgconfig bash git libc-dev zlib-dev
+
+RUN cargo --yes install cargo-binstall
+RUN cargo --yes binstall trunk wasm-bindgen-cli
 RUN rustup target add wasm32-unknown-unknown
 
 WORKDIR /app
