@@ -4,7 +4,7 @@ use crate::models::parameter::Parameter;
 use std::string::String;
 use wasm_bindgen::JsValue;
 use wasm_bindgen_futures::spawn_local;
-use web_sys::console;
+use web_sys::{FormData, console};
 use yew::prelude::*;
 use crate::services::config::API_BASE_URL;
 
@@ -93,4 +93,37 @@ pub fn predict(
             Err(e) => console::error_1(&JsValue::from_str(&format!("Request failed: {:?}", e))),
         }
     });
+}
+
+pub fn train_model(
+    form_data: FormData
+) {
+    let url = format!("{}/{}", API_BASE_URL, "train");
+
+
+    use gloo_net::http::Request;
+    use wasm_bindgen_futures::spawn_local;
+
+
+    spawn_local(async move {
+        let result = Request::post(&url)
+            .body(form_data).expect("REASON")
+            .send()
+            .await;
+
+        match result {
+            Ok(resp) => {
+                if resp.ok() {
+                    console::log_1(&JsValue::from_str("Model training initiated successfully."));
+                } else {
+                    console::error_1(&JsValue::from_str(&format!("Training failed: HTTP {}", resp.status())));
+                }
+            }
+            Err(e) => console::error_1(&JsValue::from_str(&format!("Request failed: {:?}", e))),
+        }
+
+
+    });
+
+    // Similar to predict, but calls the training endpoint
 }

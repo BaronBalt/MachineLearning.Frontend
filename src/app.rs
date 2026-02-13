@@ -1,6 +1,6 @@
 use yew::prelude::*;
 
-use crate::components::{ml_model_details::MlModelDetails, ml_models_list::MlModelsList};
+use crate::components::{ml_model_details::MlModelDetails, ml_models_list::MlModelsList, ml_train_form::MlTrainForm};
 use crate::models::ml_model::MlModel;
 use crate::services::api::fetch_ml_models;
 
@@ -10,11 +10,11 @@ pub fn App() -> Html {
     let selected_model = use_state(|| None::<MlModel>);
 
     {
-       let ml_models = ml_models.clone();
-       use_effect_with((), move |_| {
-           fetch_ml_models(ml_models, "/models");
-           || ()
-       });
+        let ml_models = ml_models.clone();
+        use_effect_with((), move |_| {
+            fetch_ml_models(ml_models, "/models");
+            || ()
+        });
     }
 
     let on_model_select = {
@@ -42,7 +42,10 @@ pub fn App() -> Html {
         <body>
             <main>
                 <h1>{ "Machine Learning Frontend" }</h1>
-
+                <div>
+                    <h3>{ "Train New Model" }</h3>
+                    <MlTrainForm />
+                    </div>
                 <div>
                     <h3>{ "Models" }</h3>
 
@@ -54,11 +57,11 @@ pub fn App() -> Html {
                 </div>
 
                 { (*selected_model).as_ref().map(|model| html! {
-                    <MlModelDetails
-                        key={model.id.clone()}
-                        ml_model={model.clone()}
-                        on_change={on_model_save.clone()}
-                    />
+                <MlModelDetails
+                    key={model.id.clone()}
+                    ml_model={model.clone()}
+                    on_change={on_model_save.clone()}
+                />
                 }) }
             </main>
         </body>
