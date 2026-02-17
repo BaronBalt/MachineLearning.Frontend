@@ -9,7 +9,7 @@ server {
     # ---- API proxy ----
     location /api/ {
         # backend is a DNS name on the docker network (e.g. docker-compose service name)
-        proxy_pass ${BACKEND_URL}/;
+        proxy_pass ${BACKEND_URL};
 
         # forward useful headers
         proxy_set_header Host              $host;
