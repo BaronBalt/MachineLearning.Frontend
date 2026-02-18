@@ -33,17 +33,33 @@ pub fn MlTrainForm() -> Html {
 
             if *use_file {
                 web_sys::console::log_1(&"Using file".to_string().into());
+
+                let input = file_ref.cast::<web_sys::HtmlInputElement>();
+                if input.is_none() {
+                    web_sys::console::log_1(&"file_ref is not a file input".to_string().into());
+                }
+                if let Some(input) = input {
+                    let files = input.files();
+                    if files.is_none() {
+                        web_sys::console::log_1(&"files property is None".to_string().into());
+                    } else {
+                        web_sys::console::log_1(
+                            &format!("files.length: {}", files.unwrap().length()).into(),
+                        );
+                    }
+                }
+
                 let input = file_ref.cast::<web_sys::HtmlInputElement>();
                 if let Some(files) = input.unwrap().files()
                     && let Some(file) = files.get(0)
                 {
                     web_sys::console::log_1(&format!("Selected: {}", file.name()).into());
                     form_data.append_with_blob("file", &file).unwrap();
-                    log::info!("file.name: {}", file.name());
-                    log::info!("file.size: {}", file.size());
-                    log::info!("file.type: {}", file.type_());
+                    web_sys::console::log_1(&format!("file.name: {}", file.name()).into());
+                    web_sys::console::log_1(&format!("file.size: {}", file.size()).into());
+                    web_sys::console::log_1(&format!("file.type: {}", file.type_()).into());
                 } else {
-                    log::info!("No file selected");
+                    web_sys::console::log_1(&"No file selected".to_string().into());
                 }
             } else {
                 web_sys::console::log_1(&"NOT Using file".to_string().into());
@@ -105,7 +121,6 @@ pub fn MlTrainForm() -> Html {
                 <div>
 
                     <input
-                        ref={file_ref}
                         type="checkbox"
                         role="switch"
                         checked={*use_file}
@@ -127,7 +142,7 @@ pub fn MlTrainForm() -> Html {
                     {
                     if *use_file {
                     html! {
-                    <input type="file" accept=".csv,text/csv"/>
+                    <input type="file" accept=".csv,text/csv" ref={file_ref}/>
                     }
                     } else {
                     html! {

@@ -1,6 +1,8 @@
 use yew::prelude::*;
 
-use crate::components::{ml_model_details::MlModelDetails, ml_models_list::MlModelsList, ml_train_form::MlTrainForm};
+use crate::components::{
+    ml_model_details::MlModelDetails, ml_models_list::MlModelsList, ml_train_form::MlTrainForm,
+};
 use crate::models::ml_model::MlModel;
 use crate::services::api::fetch_ml_models;
 
@@ -57,11 +59,17 @@ pub fn App() -> Html {
                 </div>
 
                 { (*selected_model).as_ref().map(|model| html! {
+                if model.id != 0 {
+                <MlTrainForm/>
+                } else {
                 <MlModelDetails
                     key={model.id.clone()}
                     ml_model={model.clone()}
                     on_change={on_model_save.clone()}
                 />
+
+
+                }
                 }) }
             </main>
         </body>
