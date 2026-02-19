@@ -1,10 +1,19 @@
-use crate::services::api::train_model;
+use crate::{
+    models::ml_model::MlModel,
+    services::api::{fetch_ml_models, train_model},
+};
 use web_sys::{HtmlInputElement, HtmlSelectElement};
 use yew::prelude::*;
 
+#[derive(Properties, PartialEq)]
+pub struct MlModelListProps {
+    pub on_ml_models_change: Callback<Vec<MlModel>>,
+}
+
 #[component]
-pub fn MlTrainForm() -> Html {
+pub fn MlTrainForm(props: &MlModelListProps) -> Html {
     let use_file = use_state(|| false);
+    let is_loading = use_state(|| false);
     let on_toggle = {
         let use_file = use_file.clone();
         Callback::from(move |e: Event| {
@@ -25,7 +34,12 @@ pub fn MlTrainForm() -> Html {
         let name_field = name_field.clone();
         let version_field = "1";
         let file_name_field = file_name_field.clone();
+        let is_loading = is_loading.clone();
+        let on_ml_models_change = props.on_ml_models_change.clone();
         Callback::from(move |e: SubmitEvent| {
+            let is_loading = is_loading.clone();
+            is_loading.set(true);
+            let on_ml_models_change = on_ml_models_change.clone();
             e.prevent_default();
 
             let form_data = web_sys::FormData::new().unwrap();
@@ -81,6 +95,31 @@ pub fn MlTrainForm() -> Html {
 
             wasm_bindgen_futures::spawn_local(async move {
                 train_model(form_data);
+                gloo_timers::future::TimeoutFuture::new(1000).await;
+
+                let models = fetch_ml_models().await;
+                match models {
+                    Ok(models) => {
+                        for model in &models {
+                            web_sys::console::log_1(
+                                &format!("Model: {} (ID: {})", model.name, model.id).into(),
+                            );
+                        }
+                        web_sys::console::log_1(
+                            &"Fetched updated models list after training".to_string().into(),
+                        );
+                        on_ml_models_change.emit(models);
+                        web_sys::console::log_1(
+                            &"Model created and models list updated"
+                                .to_string()
+                                .into(),
+                        );
+                    }
+                    Err(err) => web_sys::console::error_1(
+                        &format!("Error fetching models: {:?}", err).into(),
+                    ),
+                }
+                is_loading.set(false);
             });
 
             // Callback::from(move |_| {
@@ -155,23 +194,22 @@ pub fn MlTrainForm() -> Html {
                     }
                     }
                 </div>
-                <button type="submit" >{ "Train Model" }</button>
+                <button aria-busy={if (*is_loading).clone() {"true"} else {"false"} } type="submit" >{ "Train Model" }</button>
             </form>
         </div>
     }
-        /*
-                <div>
-                    <label>
-                        {"Version"}
-                    </label>
-                    <input type="number"
-                        value={(*version_field).clone()}
-                        oninput={Callback::from(move |e: InputEvent| {
-                            let value = e.target_unchecked_into::<HtmlInputElement>().value();
-                            version_field.set(value);
-                        })}
-                        />
-                </div>
-        */
-
+    /*
+            <div>
+                <label>
+                    {"Version"}
+                </label>
+                <input type="number"
+                    value={(*version_field).clone()}
+                    oninput={Callback::from(move |e: InputEvent| {
+                        let value = e.target_unchecked_into::<HtmlInputElement>().value();
+                        version_field.set(value);
+                    })}
+                    />
+            </div>
+    */
 }

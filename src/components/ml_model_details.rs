@@ -1,11 +1,12 @@
 use crate::models::ml_model::MlModel;
-use crate::services::api::{predict, train_model};
+use crate::services::api::{fetch_ml_models, predict, train_model};
 use web_sys::HtmlInputElement;
 use yew::prelude::*;
 
 #[derive(Properties, PartialEq)]
 pub struct MlModelDetailsProps {
     pub ml_model: MlModel,
+    pub on_ml_models_change: Callback<Vec<MlModel>>,
     #[prop_or_default]
     pub on_change: Callback<MlModel>,
 }
@@ -34,14 +35,17 @@ pub fn MlModelDetails(props: &MlModelDetailsProps) -> Html {
         })
     };
     let prediction = use_state(|| None::<String>);
+    let is_loading = use_state(|| false);
 
     let on_click = {
         let prediction = prediction.clone();
         let ml_model = props.ml_model.clone();
         let params = props.ml_model.parameters.clone();
         let selected_version = selected_version.clone();
+        let is_loading = is_loading.clone();
 
         Callback::from(move |_| {
+            is_loading.set(true);
             if let Some(version) = &*selected_version {
                 predict(
                     prediction.clone(),
@@ -49,6 +53,7 @@ pub fn MlModelDetails(props: &MlModelDetailsProps) -> Html {
                     version.as_ref(),
                     params.clone(),
                     "/predict", // i am overriding this -- Theodor
+                    is_loading.clone(),
                 );
             }
         })
@@ -57,20 +62,50 @@ pub fn MlModelDetails(props: &MlModelDetailsProps) -> Html {
     let selected_version_value: AttrValue = selected_version.as_ref().cloned().unwrap_or_default();
 
     let is_new_version = selected_version_value == "new_version";
+    let on_ml_models_change = props.on_ml_models_change.clone();
     let on_train_further = {
+        let is_loading = is_loading.clone();
         let model_name = props.ml_model.name.clone();
+        let on_ml_models_change = on_ml_models_change.clone();
 
         Callback::from(move |_| {
             // Send to training but without version and the file for training.
             // I will use the previous training data.
-            //
+            let is_loading = is_loading.clone();
+            is_loading.set(true);
+            let on_ml_models_change = on_ml_models_change.clone();
 
             let form_data = web_sys::FormData::new().unwrap();
 
             form_data.append_with_str("model", &model_name).unwrap();
             wasm_bindgen_futures::spawn_local(async move {
                 train_model(form_data);
+
+                let models = fetch_ml_models().await;
+                match models {
+                    Ok(models) => {
+                        for model in &models {
+                            web_sys::console::log_1(
+                                &format!("Model: {} (ID: {})", model.name, model.id).into(),
+                            );
+                        }
+                        web_sys::console::log_1(
+                            &"Fetched updated models list after training".to_string().into(),
+                        );
+                        on_ml_models_change.emit(models);
+                        web_sys::console::log_1(
+                            &"Model trained further and models list updated"
+                                .to_string()
+                                .into(),
+                        );
+                    }
+                    Err(err) => web_sys::console::error_1(
+                        &format!("Error fetching models: {:?}", err).into(),
+                    ),
+                }
             });
+
+            is_loading.set(false);
         })
     };
 
@@ -103,7 +138,7 @@ pub fn MlModelDetails(props: &MlModelDetailsProps) -> Html {
                 if is_new_version {
                     html! {
                         <div>
-                            <button type="button" onclick={on_train_further}>
+                            <button aria-busy={if *is_loading {"true"} else {"false"} } type="button" onclick={on_train_further}>
                                 { "Train Further" }
                             </button>
                         </div>
@@ -137,7 +172,7 @@ pub fn MlModelDetails(props: &MlModelDetailsProps) -> Html {
                                     })
                                 }
                             </fieldset>
-                            <button type="button" onclick={on_click}>
+                            <button aria-busy={if (*is_loading).clone() {"true"} else {"false"} } type="button" onclick={on_click}>
                                 { "Predict" }
                             </button>
 

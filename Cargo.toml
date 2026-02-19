@@ -15,5 +15,6 @@ web-sys = { version = "0.3.85", features = [
     "HtmlInputElement",
     "Event",
 ] }
+gloo-timers = {version = "0.3", features = ["futures"]}
 wasm-bindgen = "0.2.108"
 log = "0.4.29"

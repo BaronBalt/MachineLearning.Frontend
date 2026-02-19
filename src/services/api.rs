@@ -2,6 +2,7 @@ use crate::models::ml_model::MlModel;
 use crate::models::ml_result::MlResult;
 use crate::models::parameter::Parameter;
 use std::string::String;
+use gloo_net::Error;
 use wasm_bindgen::JsValue;
 use wasm_bindgen_futures::spawn_local;
 use web_sys::{FormData, console};
@@ -10,24 +11,15 @@ use crate::services::config::API_BASE_URL;
 
 /// Fetches ML models from the given URL and updates the provided state.
 /// Currently, hardcoded for demo purposes.
-pub fn fetch_ml_models(ml_models_state: UseStateHandle<Vec<MlModel>>, _url: &str) {
+pub async fn fetch_ml_models() -> Result<Vec<MlModel>, Error> {
     // Uncomment the below code if you want to fetch from a real API
     use gloo_net::http::Request;
-    use wasm_bindgen_futures::spawn_local;
 
-    let url = format!("{}{}", API_BASE_URL, _url);
+    let url = format!("{}{}", API_BASE_URL, "/models");
 
-    spawn_local(async move {
-        let result = Request::get(&url).send().await;
-
-        match result {
-            Ok(resp) => match resp.json::<Vec<MlModel>>().await {
-                Ok(models) => ml_models_state.set(models),
-                Err(e) => println!("JSON parse failed: {:?}", e),
-            },
-            Err(e) => println!("Request failed: {:?}", e),
-        }
-    });
+    let result = Request::get(&url).send().await?;
+    let models = result.json::<Vec<MlModel>>().await?;
+    Ok(models)
     // Backend returns a list of these
     // MlModel {
     //     id: 1,
@@ -56,7 +48,9 @@ pub fn predict(
     version: &str,
     _params: Vec<Parameter>,
     _url: &str,
+    loading: UseStateHandle<bool>,
 ) {
+    loading.set(true);
     let mut url = format!("{}/predict?model={}", API_BASE_URL, ml_model.name);
     if !version.is_empty() {
         url.push_str(&format!("&version={}", version));
@@ -92,11 +86,12 @@ pub fn predict(
             },
             Err(e) => console::error_1(&JsValue::from_str(&format!("Request failed: {:?}", e))),
         }
+        loading.set(false);
     });
 }
 
 pub fn train_model(
-    form_data: FormData
+    form_data: FormData,
 ) {
     let url = format!("{}/{}", API_BASE_URL, "train");
 

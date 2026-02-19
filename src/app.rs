@@ -14,16 +14,32 @@ pub enum ModelSelection {
 
 #[component]
 pub fn App() -> Html {
-    let ml_models = use_state(|| vec![]);
+    let ml_models = use_state(std::vec::Vec::new);
     let selected_model = use_state(|| None::<ModelSelection>);
 
     {
         let ml_models = ml_models.clone();
         use_effect_with((), move |_| {
-            fetch_ml_models(ml_models, "/models");
+            let ml_models = ml_models.clone();
+            wasm_bindgen_futures::spawn_local(async move {
+                let models = fetch_ml_models().await;
+                match models {
+                    Ok(models) => ml_models.set(models),
+                    Err(err) => web_sys::console::error_1(
+                        &format!("Error fetching models: {:?}", err).into(),
+                    ),
+                }
+            });
             || ()
         });
     }
+
+    let on_ml_models_change = {
+        let ml_models = ml_models.clone();
+        Callback::from(move |updated_models: Vec<MlModel>| {
+            ml_models.set(updated_models);
+        })
+    };
 
     let on_model_select = {
         let selected_model = selected_model.clone();
@@ -62,12 +78,14 @@ pub fn App() -> Html {
                 { (*selected_model).as_ref().map(|selection| {
                     match selection {
                         ModelSelection::TrainNew => html! {
-                            <MlTrainForm />
+                            <MlTrainForm
+                            on_ml_models_change={on_ml_models_change.clone()}/>
                         },
                         ModelSelection::Model(model) => html! {
                             <MlModelDetails
                                 key={model.id.clone()}
                                 ml_model={model.clone()}
+                                on_ml_models_change={on_ml_models_change.clone()}
                                 on_change={on_model_save.clone()}
                             />
                         }
