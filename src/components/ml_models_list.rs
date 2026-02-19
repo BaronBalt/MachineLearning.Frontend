@@ -31,8 +31,8 @@ pub fn MlModelsList(props: &MlModelListProps) -> Html {
     };
 
     html! {
-        <select {onchange} id={"train_form"} value={(*select_value).clone()}>
-            <option disabled=true selected=true> { "-- Select a model --" } </option>
+        <select {onchange} id={"train_form"} value={(*select_value).clone()} required=true>
+            <option value={""} disabled=true selected=true> { "-- Select a model --" } </option>
             {
                 props.ml_models.iter().map(|ml_model| {
                     html! {

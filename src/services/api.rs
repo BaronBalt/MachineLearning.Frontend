@@ -1,4 +1,8 @@
-use crate::models::{ml_model::MlModel, training_files_model::TrainingFile};
+use crate::models::{
+    ml_model::MlModel,
+    training_algorithm_model::Algorithm,
+    training_files_model::TrainingFile,
+};
 use crate::models::ml_result::MlResult;
 use crate::models::parameter::Parameter;
 use std::string::String;
@@ -138,6 +142,31 @@ pub async fn fetch_training_files() -> Result<Vec<TrainingFile>, Error> {
     //     TrainingFile {
     //         name: "training_data_2".into(),
     //         filename: "training_data_2.csv".into(),
+    //     },
+    // ])
+}
+
+pub async fn fetch_training_algorithms() -> Result<Vec<Algorithm>, Error> {
+    use gloo_net::http::Request;
+    let url = format!("{}/{}", API_BASE_URL, "train");
+
+    let resp = Request::get(&url).send().await?;
+    let algorithms = resp.json::<Vec<Algorithm>>().await?;
+    Ok(algorithms)
+
+    // Ok(vec![
+    //     Algorithm {
+    //         id: "RANDOM_FORREST".into(),
+    //         name: "Random Forest".into(),
+    //         parameters: vec![
+    //         ],
+    //     },
+    //     Algorithm {
+    //         id: "LOGISTIC_REGRESSION".into(),
+    //         name: "Logistic Regression".into(),
+    //         parameters: vec![
+    //             AlgorithmParameterDef { name: "classes".into(), label: "Classes (List)".into(), default_value: "[0,1,2]".into(), param_type: "text".into() },
+    //         ],
     //     },
     // ])
 }
