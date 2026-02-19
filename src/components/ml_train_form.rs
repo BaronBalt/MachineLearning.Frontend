@@ -1,6 +1,5 @@
 use crate::services::api::train_model;
-use gloo_console::log;
-use web_sys::{HtmlInputElement, HtmlSelectElement, console::log};
+use web_sys::{HtmlInputElement, HtmlSelectElement};
 use yew::prelude::*;
 
 #[component]
@@ -16,7 +15,7 @@ pub fn MlTrainForm() -> Html {
 
     // form
     let name_field = use_state(String::new);
-    let version_field = use_state(String::new);
+    // let version_field = use_state(String::new);
     let file_name_field = use_state(String::new);
     let file_ref = use_node_ref();
 
@@ -24,7 +23,7 @@ pub fn MlTrainForm() -> Html {
         let use_file = use_file.clone();
         let file_ref = file_ref.clone();
         let name_field = name_field.clone();
-        let version_field = version_field.clone();
+        let version_field = "1";
         let file_name_field = file_name_field.clone();
         Callback::from(move |e: SubmitEvent| {
             e.prevent_default();
@@ -156,6 +155,11 @@ pub fn MlTrainForm() -> Html {
                     }
                     }
                 </div>
+                <button type="submit" >{ "Train Model" }</button>
+            </form>
+        </div>
+    }
+        /*
                 <div>
                     <label>
                         {"Version"}
@@ -167,10 +171,7 @@ pub fn MlTrainForm() -> Html {
                             version_field.set(value);
                         })}
                         />
-
                 </div>
-                <button type="submit" >{ "Train Model" }</button>
-            </form>
-        </div>
-    }
+        */
+
 }

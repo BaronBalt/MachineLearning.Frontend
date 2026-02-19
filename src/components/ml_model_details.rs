@@ -1,7 +1,7 @@
-use web_sys::HtmlInputElement;
 use crate::models::ml_model::MlModel;
+use crate::services::api::{predict, train_model};
+use web_sys::HtmlInputElement;
 use yew::prelude::*;
-use crate::services::api::predict;
 
 #[derive(Properties, PartialEq)]
 pub struct MlModelDetailsProps {
@@ -16,9 +16,7 @@ pub fn MlModelDetails(props: &MlModelDetailsProps) -> Html {
     let on_selected_version_changed = {
         let selected_version = selected_version.clone();
         Callback::from(move |e: Event| {
-            let value = e
-                .target_unchecked_into::<HtmlInputElement>()
-                .value();
+            let value = e.target_unchecked_into::<HtmlInputElement>().value();
             selected_version.set(Some(value.into()));
         })
     };
@@ -50,16 +48,31 @@ pub fn MlModelDetails(props: &MlModelDetailsProps) -> Html {
                     ml_model.clone(),
                     version.as_ref(),
                     params.clone(),
-                    "/predict" // i am overriding this -- Theodor
+                    "/predict", // i am overriding this -- Theodor
                 );
             }
         })
     };
 
-    let selected_version_value: AttrValue = selected_version
-        .as_ref()
-        .cloned()
-        .unwrap_or_default();
+    let selected_version_value: AttrValue = selected_version.as_ref().cloned().unwrap_or_default();
+
+    let is_new_version = selected_version_value == "new_version";
+    let on_train_further = {
+        let model_name = props.ml_model.name.clone();
+
+        Callback::from(move |_| {
+            // Send to training but without version and the file for training.
+            // I will use the previous training data.
+            //
+
+            let form_data = web_sys::FormData::new().unwrap();
+
+            form_data.append_with_str("model", &model_name).unwrap();
+            wasm_bindgen_futures::spawn_local(async move {
+                train_model(form_data);
+            });
+        })
+    };
 
     html! {
         <form>
@@ -77,55 +90,72 @@ pub fn MlModelDetails(props: &MlModelDetailsProps) -> Html {
                         {
                             props.ml_model.version.iter().map(|v| {
                                 html! {
-                                    <option value={v.clone()}>{ v }</option>
+                                    <option selected={Some(v.clone()) == selected_version.as_ref().cloned()} value={v.clone()}>{ v }</option>
                                 }
                             }).collect::<Html>()
                         }
+                        <option selected={false} value="new_version">{ "--- New Version ---" }</option>
                     </select>
                 </label>
             </fieldset>
-            // <hr />
-            <fieldset>
-                <h4>{ "Parameters" }</h4>
 
-                {
-                    for props.ml_model.parameters.iter().map(|param| {
-                        let on_input_change = on_input_change.clone();
-                        let name = param.name.clone();
+            {
+                if is_new_version {
+                    html! {
+                        <div>
+                            <button type="button" onclick={on_train_further}>
+                                { "Train Further" }
+                            </button>
+                        </div>
+                    }
+                } else {
+                    html! {
+                        <>
+                            <fieldset>
+                                <h4>{ "Parameters" }</h4>
 
-                        let oninput = move |e: InputEvent| {
-                            let value = e.target_unchecked_into::<HtmlInputElement>().value();
-                            on_input_change.emit((name.clone(), value));
-                        };
+                                {
+                                    for props.ml_model.parameters.iter().map(|param| {
+                                        let on_input_change = on_input_change.clone();
+                                        let name = param.name.clone();
 
-                        html! {
-                            <label>
-                                { &param.name }
-                                <input
-                                    type="text"
-                                    value={param.value.clone()}
-                                    {oninput}
-                                />
-                            </label>
-                        }
-                    })
+                                        let oninput = move |e: InputEvent| {
+                                            let value = e.target_unchecked_into::<HtmlInputElement>().value();
+                                            on_input_change.emit((name.clone(), value));
+                                        };
+
+                                        html! {
+                                            <label>
+                                                { &param.name }
+                                                <input
+                                                    type="text"
+                                                    value={param.value.clone()}
+                                                    {oninput}
+                                                />
+                                            </label>
+                                        }
+                                    })
+                                }
+                            </fieldset>
+                            <button type="button" onclick={on_click}>
+                                { "Predict" }
+                            </button>
+
+                            <hr />
+
+                            <article>
+                                <header>
+                                    <strong>{ "Prediction" }</strong>
+                                </header>
+
+                                <output>
+                                    { prediction.as_deref().unwrap_or("—") }
+                                </output>
+                            </article>
+                        </>
+                    }
                 }
-            </fieldset>
-            <button type="button" onclick={on_click}>
-                { "Predict" }
-            </button>
-
-            <hr />
-
-            <article>
-                <header>
-                    <strong>{ "Prediction" }</strong>
-                </header>
-
-                <output>
-                    { prediction.as_deref().unwrap_or("—") }
-                </output>
-            </article>
+            }
         </form>
     }
 }

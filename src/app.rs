@@ -6,10 +6,16 @@ use crate::components::{
 use crate::models::ml_model::MlModel;
 use crate::services::api::fetch_ml_models;
 
+#[derive(Clone, PartialEq)]
+pub enum ModelSelection {
+    Model(MlModel),
+    TrainNew,
+}
+
 #[component]
 pub fn App() -> Html {
     let ml_models = use_state(|| vec![]);
-    let selected_model = use_state(|| None::<MlModel>);
+    let selected_model = use_state(|| None::<ModelSelection>);
 
     {
         let ml_models = ml_models.clone();
@@ -21,8 +27,8 @@ pub fn App() -> Html {
 
     let on_model_select = {
         let selected_model = selected_model.clone();
-        Callback::from(move |ml_model: MlModel| {
-            selected_model.set(Some(ml_model));
+        Callback::from(move |selection: ModelSelection| {
+            selected_model.set(Some(selection));
         })
     };
 
@@ -36,7 +42,7 @@ pub fn App() -> Html {
                 ml_models.set(list);
             }
 
-            selected_model.set(Some(updated_model));
+            selected_model.set(Some(ModelSelection::Model(updated_model)));
         })
     };
 
@@ -45,31 +51,27 @@ pub fn App() -> Html {
             <main>
                 <h1>{ "Machine Learning Frontend" }</h1>
                 <div>
-                    <h3>{ "Train New Model" }</h3>
-                    <MlTrainForm />
-                    </div>
-                <div>
                     <h3>{ "Models" }</h3>
 
                     <MlModelsList
                         ml_models={(*ml_models).clone()}
-                        selected_id={selected_model.as_ref().map(|m| m.id.clone())}
                         on_change={on_model_select}
                     />
                 </div>
 
-                { (*selected_model).as_ref().map(|model| html! {
-                if model.id != 0 {
-                <MlTrainForm/>
-                } else {
-                <MlModelDetails
-                    key={model.id.clone()}
-                    ml_model={model.clone()}
-                    on_change={on_model_save.clone()}
-                />
-
-
-                }
+                { (*selected_model).as_ref().map(|selection| {
+                    match selection {
+                        ModelSelection::TrainNew => html! {
+                            <MlTrainForm />
+                        },
+                        ModelSelection::Model(model) => html! {
+                            <MlModelDetails
+                                key={model.id.clone()}
+                                ml_model={model.clone()}
+                                on_change={on_model_save.clone()}
+                            />
+                        }
+                    }
                 }) }
             </main>
         </body>
