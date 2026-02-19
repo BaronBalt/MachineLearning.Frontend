@@ -42,7 +42,7 @@ pub fn MlModelsList(props: &MlModelListProps) -> Html {
                     }
                 }).collect::<Html>()
             }
-            <option value="new"> { "--- Train New Model ---" } </option>
+            <option value="new"> { "-- Train New Model --" } </option>
         </select>
     }
 }

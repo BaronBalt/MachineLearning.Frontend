@@ -1,6 +1,6 @@
 use crate::{
-    models::ml_model::MlModel,
-    services::api::{fetch_ml_models, train_model},
+    models::{ml_model::MlModel, training_files_model::TrainingFile},
+    services::api::{fetch_ml_models, train_model, fetch_training_files},
 };
 use web_sys::{HtmlInputElement, HtmlSelectElement};
 use yew::prelude::*;
@@ -22,8 +22,31 @@ pub fn MlTrainForm(props: &MlModelListProps) -> Html {
         })
     };
 
+    let files: UseStateHandle<Vec<TrainingFile>> = use_state(std::vec::Vec::new);
+
+    
+    {
+        let files = files.clone();
+        use_effect_with((), move |_| {
+            let files = files.clone();
+            wasm_bindgen_futures::spawn_local(async move {
+                
+                let training_files = fetch_training_files().await;
+
+                match training_files {
+                    Ok(training) => files.set(training),
+                    Err(err) => web_sys::console::error_1(
+                        &format!("Error fetching models: {:?}", err).into(),
+                    ),
+                }
+            });
+            || ()
+        });
+    }
+
     // form
     let name_field = use_state(String::new);
+
     // let version_field = use_state(String::new);
     let file_name_field = use_state(String::new);
     let file_ref = use_node_ref();
@@ -53,12 +76,15 @@ pub fn MlTrainForm(props: &MlModelListProps) -> Html {
                 }
                 if let Some(input) = input {
                     let files = input.files();
-                    if files.is_none() {
-                        web_sys::console::log_1(&"files property is None".to_string().into());
-                    } else {
-                        web_sys::console::log_1(
-                            &format!("files.length: {}", files.unwrap().length()).into(),
-                        );
+                    match files.is_none() {
+                        true => {
+                            web_sys::console::log_1(&"files property is None".to_string().into());
+                        }
+                        false => {
+                            web_sys::console::log_1(
+                                &format!("files.length: {}", files.unwrap().length()).into(),
+                            );
+                        }
                     }
                 }
 
@@ -90,7 +116,7 @@ pub fn MlTrainForm(props: &MlModelListProps) -> Html {
 
             form_data.append_with_str("model", &name_field).unwrap();
             form_data
-                .append_with_str("version", &version_field)
+                .append_with_str("version", version_field)
                 .unwrap();
 
             wasm_bindgen_futures::spawn_local(async move {
@@ -122,9 +148,6 @@ pub fn MlTrainForm(props: &MlModelListProps) -> Html {
                 is_loading.set(false);
             });
 
-            // Callback::from(move |_| {
-            //     train_model(form_data);
-            // })
         })
     };
 
@@ -186,9 +209,14 @@ pub fn MlTrainForm(props: &MlModelListProps) -> Html {
                     html! {
                     // get files in the database from the backend
                     <select onchange={file_name_field_onchange} value={(*file_name_field).clone()}>
-                        <option style="display:none"> { "-- Select a file --" } </option>
-                        <option value="train.csv">{"Train"}</option>
-                        <option value="train.csv">{"Train"}</option>
+                        <option value={""} disabled={true}> { "-- Select a file --" } </option>
+                        {files.iter().map(|file| {
+                            html! {
+                                <option value={file.filename.clone()}>
+                                    { &file.name }
+                                </option>
+                            }
+                        }).collect::<Html>()}
                     </select>
                     }
                     }
@@ -198,18 +226,4 @@ pub fn MlTrainForm(props: &MlModelListProps) -> Html {
             </form>
         </div>
     }
-    /*
-            <div>
-                <label>
-                    {"Version"}
-                </label>
-                <input type="number"
-                    value={(*version_field).clone()}
-                    oninput={Callback::from(move |e: InputEvent| {
-                        let value = e.target_unchecked_into::<HtmlInputElement>().value();
-                        version_field.set(value);
-                    })}
-                    />
-            </div>
-    */
 }

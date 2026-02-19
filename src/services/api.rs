@@ -1,4 +1,4 @@
-use crate::models::ml_model::MlModel;
+use crate::models::{ml_model::MlModel, training_files_model::TrainingFile};
 use crate::models::ml_result::MlResult;
 use crate::models::parameter::Parameter;
 use std::string::String;
@@ -15,7 +15,7 @@ pub async fn fetch_ml_models() -> Result<Vec<MlModel>, Error> {
     // Uncomment the below code if you want to fetch from a real API
     use gloo_net::http::Request;
 
-    let url = format!("{}{}", API_BASE_URL, "/models");
+    let url = format!("{}/{}", API_BASE_URL, "models");
 
     let result = Request::get(&url).send().await?;
     let models = result.json::<Vec<MlModel>>().await?;
@@ -120,5 +120,24 @@ pub fn train_model(
 
     });
 
-    // Similar to predict, but calls the training endpoint
+}
+
+pub async fn fetch_training_files() -> Result<Vec<TrainingFile>, Error> {
+    use gloo_net::http::Request;
+    let url = format!("{}/{}", API_BASE_URL, "training-files");
+    
+    let resp = Request::get(&url).send().await?;
+    let training_files = resp.json::<Vec<TrainingFile>>().await?;
+    Ok(training_files)
+    
+    // Ok(vec![
+    //     TrainingFile {
+    //         name: "training_data_1".into(),
+    //         filename: "training_data_1.csv".into(),
+    //     },
+    //     TrainingFile {
+    //         name: "training_data_2".into(),
+    //         filename: "training_data_2.csv".into(),
+    //     },
+    // ])
 }
