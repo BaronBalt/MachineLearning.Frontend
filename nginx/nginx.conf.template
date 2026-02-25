@@ -23,9 +23,6 @@ server {
       proxy_set_header X-Forwarded-For   $proxy_add_x_forwarded_for;
       proxy_set_header X-Forwarded-Proto $scheme;
 
-# optional: avoid long hangs while testing
-      proxy_connect_timeout 3s;
-      proxy_read_timeout 10s;
     }
     # ---- SPA routing (Yew client-side routes) ----
     location / {
