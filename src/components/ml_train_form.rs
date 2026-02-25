@@ -1,6 +1,13 @@
 use crate::{
-    models::{ml_model::MlModel, training_files_model::TrainingFile},
-    services::api::{fetch_ml_models, train_model, fetch_training_files},
+    components::algorithm_selector::AlgorithmSelector,
+    models::{
+        ml_model::MlModel,
+        training_algorithm_model::{Algorithm, AlgorithmSelection},
+        training_files_model::TrainingFile,
+    },
+    services::api::{
+        fetch_ml_models, fetch_training_algorithms, fetch_training_files, train_model,
+    },
 };
 use web_sys::{HtmlInputElement, HtmlSelectElement};
 use yew::prelude::*;
@@ -23,18 +30,26 @@ pub fn MlTrainForm(props: &MlModelListProps) -> Html {
     };
 
     let files: UseStateHandle<Vec<TrainingFile>> = use_state(std::vec::Vec::new);
+    let algorithms: UseStateHandle<Vec<Algorithm>> = use_state(std::vec::Vec::new);
+    let algorithm_selection: UseStateHandle<Option<AlgorithmSelection>> = use_state(|| None);
+    let target_column = use_state(String::new);
+    let name_field = use_state(String::new);
 
-    
+    // let version_field = use_state(String::new);
+    let file_name_field = use_state(String::new);
+    let file_ref = use_node_ref();
+
     {
         let files = files.clone();
         use_effect_with((), move |_| {
             let files = files.clone();
             wasm_bindgen_futures::spawn_local(async move {
-                
                 let training_files = fetch_training_files().await;
 
                 match training_files {
-                    Ok(training) => files.set(training),
+                    Ok(training) => {
+                        files.set(training);
+                    }
                     Err(err) => web_sys::console::error_1(
                         &format!("Error fetching models: {:?}", err).into(),
                     ),
@@ -44,12 +59,25 @@ pub fn MlTrainForm(props: &MlModelListProps) -> Html {
         });
     }
 
-    // form
-    let name_field = use_state(String::new);
+    {
+        let algorithms = algorithms.clone();
+        use_effect_with((), move |_| {
+            let algorithms = algorithms.clone();
+            wasm_bindgen_futures::spawn_local(async move {
+                let training_algorithms = fetch_training_algorithms().await;
 
-    // let version_field = use_state(String::new);
-    let file_name_field = use_state(String::new);
-    let file_ref = use_node_ref();
+                match training_algorithms {
+                    Ok(training) => algorithms.set(training),
+                    Err(err) => web_sys::console::error_1(
+                        &format!("Error fetching algorithms: {:?}", err).into(),
+                    ),
+                }
+            });
+            || ()
+        });
+    }
+
+    // form
 
     let on_submit = {
         let use_file = use_file.clone();
@@ -59,6 +87,8 @@ pub fn MlTrainForm(props: &MlModelListProps) -> Html {
         let file_name_field = file_name_field.clone();
         let is_loading = is_loading.clone();
         let on_ml_models_change = props.on_ml_models_change.clone();
+        let algorithm_selection = algorithm_selection.clone();
+        let target_column = target_column.clone();
         Callback::from(move |e: SubmitEvent| {
             let is_loading = is_loading.clone();
             is_loading.set(true);
@@ -69,6 +99,19 @@ pub fn MlTrainForm(props: &MlModelListProps) -> Html {
 
             if *use_file {
                 web_sys::console::log_1(&"Using file".to_string().into());
+
+                if target_column.is_empty() {
+                    web_sys::window()
+                        .unwrap()
+                        .alert_with_message("Please enter the target column name.")
+                        .unwrap();
+                    is_loading.set(false);
+                    return;
+                } else {
+                    form_data
+                        .append_with_str("target_column", &(*target_column))
+                        .unwrap();
+                }
 
                 let input = file_ref.cast::<web_sys::HtmlInputElement>();
                 if input.is_none() {
@@ -115,9 +158,16 @@ pub fn MlTrainForm(props: &MlModelListProps) -> Html {
             }
 
             form_data.append_with_str("model", &name_field).unwrap();
-            form_data
-                .append_with_str("version", version_field)
-                .unwrap();
+            form_data.append_with_str("version", version_field).unwrap();
+
+            if let Some(ref selection) = *algorithm_selection {
+                form_data
+                    .append_with_str("algorithm", &selection.algorithm_id)
+                    .unwrap();
+                for (key, value) in &selection.params {
+                    form_data.append_with_str(key, value).unwrap();
+                }
+            }
 
             wasm_bindgen_futures::spawn_local(async move {
                 train_model(form_data);
@@ -132,13 +182,13 @@ pub fn MlTrainForm(props: &MlModelListProps) -> Html {
                             );
                         }
                         web_sys::console::log_1(
-                            &"Fetched updated models list after training".to_string().into(),
+                            &"Fetched updated models list after training"
+                                .to_string()
+                                .into(),
                         );
                         on_ml_models_change.emit(models);
                         web_sys::console::log_1(
-                            &"Model created and models list updated"
-                                .to_string()
-                                .into(),
+                            &"Model created and models list updated".to_string().into(),
                         );
                     }
                     Err(err) => web_sys::console::error_1(
@@ -147,7 +197,13 @@ pub fn MlTrainForm(props: &MlModelListProps) -> Html {
                 }
                 is_loading.set(false);
             });
+        })
+    };
 
+    let on_algorithm_change = {
+        let algorithm_selection = algorithm_selection.clone();
+        Callback::from(move |selection: Option<AlgorithmSelection>| {
+            algorithm_selection.set(selection);
         })
     };
 
@@ -156,6 +212,7 @@ pub fn MlTrainForm(props: &MlModelListProps) -> Html {
         Callback::from(move |e: Event| {
             let select: HtmlSelectElement = e.target_unchecked_into();
             file_name_field.set(select.value());
+            web_sys::console::log_1(&format!("Selected file: {}", select.value()).into());
         })
     };
     let name_field_onchange = {
@@ -163,6 +220,14 @@ pub fn MlTrainForm(props: &MlModelListProps) -> Html {
         Callback::from(move |e: InputEvent| {
             let input: HtmlInputElement = e.target_unchecked_into();
             name_field.set(input.value());
+        })
+    };
+
+    let target_column_onchange = {
+        let target_column = target_column.clone();
+        Callback::from(move |e: InputEvent| {
+            let input: HtmlInputElement = e.target_unchecked_into();
+            target_column.set(input.value());
         })
     };
 
@@ -203,13 +268,16 @@ pub fn MlTrainForm(props: &MlModelListProps) -> Html {
                     {
                     if *use_file {
                     html! {
+                    <>
                     <input type="file" accept=".csv,text/csv" ref={file_ref}/>
+                    <input type="text" value={(*target_column).clone()} oninput={target_column_onchange} placeholder="Target Column Name"/>
+                    </>
                     }
                     } else {
                     html! {
                     // get files in the database from the backend
-                    <select onchange={file_name_field_onchange} value={(*file_name_field).clone()}>
-                        <option value={""} disabled={true}> { "-- Select a file --" } </option>
+                    <select onchange={file_name_field_onchange} value={(*file_name_field).clone()} required={true}>
+                        <option value={""} selected={true} disabled={true}> { "-- Select a file --" } </option>
                         {files.iter().map(|file| {
                             html! {
                                 <option value={file.filename.clone()}>
@@ -222,6 +290,10 @@ pub fn MlTrainForm(props: &MlModelListProps) -> Html {
                     }
                     }
                 </div>
+                <AlgorithmSelector
+                    algorithms={(*algorithms).clone()}
+                    on_change={on_algorithm_change}
+                />
                 <button aria-busy={if (*is_loading).clone() {"true"} else {"false"} } type="submit" >{ "Train Model" }</button>
             </form>
         </div>
