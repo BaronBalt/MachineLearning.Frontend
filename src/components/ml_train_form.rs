@@ -161,6 +161,7 @@ pub fn MlTrainForm(props: &MlModelListProps) -> Html {
             form_data.append_with_str("version", version_field).unwrap();
 
             if let Some(ref selection) = *algorithm_selection {
+                web_sys::console::log_1(&format!("Algorithm id: {}", &selection.algorithm_id).into());
                 form_data
                     .append_with_str("algorithm", &selection.algorithm_id)
                     .unwrap();
