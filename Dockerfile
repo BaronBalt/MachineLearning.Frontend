@@ -21,9 +21,11 @@ WORKDIR /app
 COPY . .
 RUN trunk build --release
 
+ENV BACKEND_URL=http://localhost:5000/api
+
 # Stage 2: Serve with nginx
 FROM nginx:alpine
-
+COPY nginx/nginx.conf.template /etc/nginx/templates/default.conf.template
 # Copy build output to nginx html directory
 COPY --from=builder /app/dist /usr/share/nginx/html
 

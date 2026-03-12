@@ -10,4 +10,5 @@ pub struct MlModel {
     pub version: Vec<AttrValue>,
     pub parameters: Vec<Parameter>,
     pub url: AttrValue,
+    pub algorithm: Option<String>,
 }
