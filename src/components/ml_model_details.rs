@@ -9,11 +9,25 @@ pub struct MlModelDetailsProps {
     pub on_ml_models_change: Callback<Vec<MlModel>>,
     #[prop_or_default]
     pub on_change: Callback<MlModel>,
+    pub on_error: Callback<String>,
+    pub on_model_trained: Callback<MlModel>,
+    pub on_success: Callback<String>,
 }
 
 #[component]
 pub fn MlModelDetails(props: &MlModelDetailsProps) -> Html {
     let selected_version = use_state(|| props.ml_model.version.last().cloned());
+
+    // When the version list grows (e.g. after Train Further), jump to the new latest version.
+    {
+        let selected_version = selected_version.clone();
+        let latest = props.ml_model.version.last().cloned();
+        use_effect_with(props.ml_model.version.clone(), move |_| {
+            selected_version.set(latest);
+            || ()
+        });
+    }
+
     let on_selected_version_changed = {
         let selected_version = selected_version.clone();
         Callback::from(move |e: Event| {
@@ -43,6 +57,7 @@ pub fn MlModelDetails(props: &MlModelDetailsProps) -> Html {
         let params = props.ml_model.parameters.clone();
         let selected_version = selected_version.clone();
         let is_loading = is_loading.clone();
+        let on_error = props.on_error.clone();
 
         Callback::from(move |_| {
             is_loading.set(true);
@@ -54,6 +69,7 @@ pub fn MlModelDetails(props: &MlModelDetailsProps) -> Html {
                     params.clone(),
                     "/predict", // i am overriding this -- Theodor
                     is_loading.clone(),
+                    on_error.clone(),
                 );
             }
         })
@@ -67,45 +83,43 @@ pub fn MlModelDetails(props: &MlModelDetailsProps) -> Html {
         let is_loading = is_loading.clone();
         let model_name = props.ml_model.name.clone();
         let on_ml_models_change = on_ml_models_change.clone();
+        let on_error = props.on_error.clone();
+        let on_model_trained = props.on_model_trained.clone();
+        let on_success = props.on_success.clone();
 
         Callback::from(move |_| {
-            // Send to training but without version and the file for training.
-            // I will use the previous training data.
             let is_loading = is_loading.clone();
             is_loading.set(true);
             let on_ml_models_change = on_ml_models_change.clone();
+            let on_error = on_error.clone();
+            let on_model_trained = on_model_trained.clone();
+            let on_success = on_success.clone();
+            let model_name = model_name.clone();
 
             let form_data = web_sys::FormData::new().unwrap();
 
             form_data.append_with_str("model", &model_name).unwrap();
             wasm_bindgen_futures::spawn_local(async move {
-                train_model(form_data);
-
-                let models = fetch_ml_models().await;
-                match models {
-                    Ok(models) => {
-                        for model in &models {
-                            web_sys::console::log_1(
-                                &format!("Model: {} (ID: {})", model.name, model.id).into(),
-                            );
+                match train_model(form_data).await {
+                    Ok(()) => {
+                        match fetch_ml_models().await {
+                            Ok(models) => {
+                                let trained = models.iter()
+                                    .find(|m| m.name == model_name)
+                                    .cloned();
+                                on_ml_models_change.emit(models);
+                                if let Some(model) = trained {
+                                    on_success.emit(format!("\"{}\" trained further successfully.", model.name));
+                                    on_model_trained.emit(model);
+                                }
+                            }
+                            Err(msg) => on_error.emit(msg),
                         }
-                        web_sys::console::log_1(
-                            &"Fetched updated models list after training".to_string().into(),
-                        );
-                        on_ml_models_change.emit(models);
-                        web_sys::console::log_1(
-                            &"Model trained further and models list updated"
-                                .to_string()
-                                .into(),
-                        );
                     }
-                    Err(err) => web_sys::console::error_1(
-                        &format!("Error fetching models: {:?}", err).into(),
-                    ),
+                    Err(msg) => on_error.emit(msg),
                 }
+                is_loading.set(false);
             });
-
-            is_loading.set(false);
         })
     };
 
@@ -136,11 +150,24 @@ pub fn MlModelDetails(props: &MlModelDetailsProps) -> Html {
 
             {
                 if is_new_version {
+                    let is_logistic = props.ml_model.algorithm.as_deref()
+                        .map(|a| a.eq_ignore_ascii_case("LOGISTIC_REGRESSION"))
+                        .unwrap_or(false);
                     html! {
                         <div>
-                            <button aria-busy={if *is_loading {"true"} else {"false"} } type="button" onclick={on_train_further}>
-                                { "Train Further" }
+                            <button
+                                aria-busy={if *is_loading {"true"} else {"false"}}
+                                type="button"
+                                onclick={on_train_further}
+                                disabled={is_logistic || *is_loading}
+                            >
+                                { if *is_loading { "Training…" } else { "Train Further" } }
                             </button>
+                            if is_logistic {
+                                <small style="display: block; margin-top: 0.25rem; opacity: 0.7;">
+                                    { "Logistic Regression models cannot be trained further." }
+                                </small>
+                            }
                         </div>
                     }
                 } else {
@@ -172,8 +199,13 @@ pub fn MlModelDetails(props: &MlModelDetailsProps) -> Html {
                                     })
                                 }
                             </fieldset>
-                            <button aria-busy={if (*is_loading).clone() {"true"} else {"false"} } type="button" onclick={on_click}>
-                                { "Predict" }
+                            <button
+                                aria-busy={if *is_loading {"true"} else {"false"}}
+                                disabled={*is_loading}
+                                type="button"
+                                onclick={on_click}
+                            >
+                                { if *is_loading { "Predicting…" } else { "Predict" } }
                             </button>
 
                             <hr />

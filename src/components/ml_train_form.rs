@@ -15,6 +15,9 @@ use yew::prelude::*;
 #[derive(Properties, PartialEq)]
 pub struct MlModelListProps {
     pub on_ml_models_change: Callback<Vec<MlModel>>,
+    pub on_error: Callback<String>,
+    pub on_model_trained: Callback<MlModel>,
+    pub on_success: Callback<String>,
 }
 
 #[component]
@@ -41,18 +44,14 @@ pub fn MlTrainForm(props: &MlModelListProps) -> Html {
 
     {
         let files = files.clone();
+        let on_error = props.on_error.clone();
         use_effect_with((), move |_| {
             let files = files.clone();
+            let on_error = on_error.clone();
             wasm_bindgen_futures::spawn_local(async move {
-                let training_files = fetch_training_files().await;
-
-                match training_files {
-                    Ok(training) => {
-                        files.set(training);
-                    }
-                    Err(err) => web_sys::console::error_1(
-                        &format!("Error fetching models: {:?}", err).into(),
-                    ),
+                match fetch_training_files().await {
+                    Ok(training) => files.set(training),
+                    Err(msg) => on_error.emit(msg),
                 }
             });
             || ()
@@ -61,16 +60,14 @@ pub fn MlTrainForm(props: &MlModelListProps) -> Html {
 
     {
         let algorithms = algorithms.clone();
+        let on_error = props.on_error.clone();
         use_effect_with((), move |_| {
             let algorithms = algorithms.clone();
+            let on_error = on_error.clone();
             wasm_bindgen_futures::spawn_local(async move {
-                let training_algorithms = fetch_training_algorithms().await;
-
-                match training_algorithms {
+                match fetch_training_algorithms().await {
                     Ok(training) => algorithms.set(training),
-                    Err(err) => web_sys::console::error_1(
-                        &format!("Error fetching algorithms: {:?}", err).into(),
-                    ),
+                    Err(msg) => on_error.emit(msg),
                 }
             });
             || ()
@@ -87,12 +84,19 @@ pub fn MlTrainForm(props: &MlModelListProps) -> Html {
         let file_name_field = file_name_field.clone();
         let is_loading = is_loading.clone();
         let on_ml_models_change = props.on_ml_models_change.clone();
+        let on_error = props.on_error.clone();
+        let on_model_trained = props.on_model_trained.clone();
+        let on_success = props.on_success.clone();
         let algorithm_selection = algorithm_selection.clone();
         let target_column = target_column.clone();
         Callback::from(move |e: SubmitEvent| {
             let is_loading = is_loading.clone();
             is_loading.set(true);
             let on_ml_models_change = on_ml_models_change.clone();
+            let on_error = on_error.clone();
+            let on_model_trained = on_model_trained.clone();
+            let on_success = on_success.clone();
+            let trained_name = (*name_field).clone();
             e.prevent_default();
 
             let form_data = web_sys::FormData::new().unwrap();
@@ -171,30 +175,24 @@ pub fn MlTrainForm(props: &MlModelListProps) -> Html {
             }
 
             wasm_bindgen_futures::spawn_local(async move {
-                train_model(form_data);
-                gloo_timers::future::TimeoutFuture::new(1000).await;
-
-                let models = fetch_ml_models().await;
-                match models {
-                    Ok(models) => {
-                        for model in &models {
-                            web_sys::console::log_1(
-                                &format!("Model: {} (ID: {})", model.name, model.id).into(),
-                            );
+                match train_model(form_data).await {
+                    Ok(()) => {
+                        gloo_timers::future::TimeoutFuture::new(1000).await;
+                        match fetch_ml_models().await {
+                            Ok(models) => {
+                                let trained = models.iter()
+                                    .find(|m| m.name.as_ref() == trained_name.as_str())
+                                    .cloned();
+                                on_ml_models_change.emit(models);
+                                if let Some(model) = trained {
+                                    on_success.emit(format!("Model \"{}\" trained successfully.", model.name));
+                                    on_model_trained.emit(model);
+                                }
+                            }
+                            Err(msg) => on_error.emit(msg),
                         }
-                        web_sys::console::log_1(
-                            &"Fetched updated models list after training"
-                                .to_string()
-                                .into(),
-                        );
-                        on_ml_models_change.emit(models);
-                        web_sys::console::log_1(
-                            &"Model created and models list updated".to_string().into(),
-                        );
                     }
-                    Err(err) => web_sys::console::error_1(
-                        &format!("Error fetching models: {:?}", err).into(),
-                    ),
+                    Err(msg) => on_error.emit(msg),
                 }
                 is_loading.set(false);
             });
@@ -295,7 +293,13 @@ pub fn MlTrainForm(props: &MlModelListProps) -> Html {
                     algorithms={(*algorithms).clone()}
                     on_change={on_algorithm_change}
                 />
-                <button aria-busy={if (*is_loading).clone() {"true"} else {"false"} } type="submit" >{ "Train Model" }</button>
+                <button
+                    aria-busy={if *is_loading {"true"} else {"false"}}
+                    disabled={*is_loading}
+                    type="submit"
+                >
+                    { if *is_loading { "Training…" } else { "Train Model" } }
+                </button>
             </form>
         </div>
     }
