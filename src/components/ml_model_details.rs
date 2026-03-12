@@ -1,5 +1,5 @@
 use crate::models::ml_model::MlModel;
-use crate::services::api::{fetch_ml_models, predict, train_model};
+use crate::services::api::{fetch_ml_models, poll_training_status, predict, train_model};
 use web_sys::HtmlInputElement;
 use yew::prelude::*;
 
@@ -101,19 +101,37 @@ pub fn MlModelDetails(props: &MlModelDetailsProps) -> Html {
             form_data.append_with_str("model", &model_name).unwrap();
             wasm_bindgen_futures::spawn_local(async move {
                 match train_model(form_data).await {
-                    Ok(()) => {
-                        match fetch_ml_models().await {
-                            Ok(models) => {
-                                let trained = models.iter()
-                                    .find(|m| m.name == model_name)
-                                    .cloned();
-                                on_ml_models_change.emit(models);
-                                if let Some(model) = trained {
-                                    on_success.emit(format!("\"{}\" trained further successfully.", model.name));
-                                    on_model_trained.emit(model);
+                    Ok(job_id) => {
+                        loop {
+                            gloo_timers::future::TimeoutFuture::new(2000).await;
+                            match poll_training_status(&job_id).await {
+                                Ok(job) if job.status == "complete" => {
+                                    match fetch_ml_models().await {
+                                        Ok(models) => {
+                                            let trained = models.iter()
+                                                .find(|m| m.name == model_name)
+                                                .cloned();
+                                            on_ml_models_change.emit(models);
+                                            if let Some(model) = trained {
+                                                on_success.emit(format!("\"{}\" trained further successfully.", model.name));
+                                                on_model_trained.emit(model);
+                                            }
+                                        }
+                                        Err(msg) => on_error.emit(msg),
+                                    }
+                                    break;
+                                }
+                                Ok(job) if job.status == "failed" => {
+                                    let msg = job.error.unwrap_or_else(|| "Training failed".to_string());
+                                    on_error.emit(msg);
+                                    break;
+                                }
+                                Ok(_) => {}
+                                Err(msg) => {
+                                    on_error.emit(msg);
+                                    break;
                                 }
                             }
-                            Err(msg) => on_error.emit(msg),
                         }
                     }
                     Err(msg) => on_error.emit(msg),

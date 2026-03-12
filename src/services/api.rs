@@ -5,12 +5,27 @@ use crate::models::{
 };
 use crate::models::ml_result::MlResult;
 use crate::models::parameter::Parameter;
+use serde::Deserialize;
 use std::string::String;
 use wasm_bindgen::JsValue;
 use wasm_bindgen_futures::spawn_local;
 use web_sys::{FormData, console};
 use yew::prelude::*;
 use crate::services::config::API_BASE_URL;
+
+#[derive(Clone, PartialEq, Deserialize)]
+pub struct TrainingJobStatus {
+    pub status: String,
+    pub result: Option<TrainingResult>,
+    pub error: Option<String>,
+}
+
+#[derive(Clone, PartialEq, Deserialize)]
+pub struct TrainingResult {
+    pub model: String,
+    pub version: u32,
+    pub evaluation_metrics: serde_json::Value,
+}
 
 async fn parse_response<T: for<'de> serde::Deserialize<'de>>(
     resp: gloo_net::http::Response,
@@ -91,40 +106,46 @@ pub fn predict(
     });
 }
 
-pub async fn train_model(
-    form_data: FormData,
-) -> Result<(), String> {
+/// Starts a background training job and returns the job_id on success.
+pub async fn train_model(form_data: FormData) -> Result<String, String> {
     use gloo_net::http::Request;
 
     let url = format!("{}/{}", API_BASE_URL, "train");
 
-    let result = Request::post(&url)
-        .body(form_data).expect("REASON")
+    let resp = Request::post(&url)
+        .body(form_data)
+        .expect("Failed to set form body")
         .send()
-        .await;
+        .await
+        .map_err(|e| e.to_string())?;
 
-    match result {
-        Ok(resp) => {
-            if resp.ok() {
-                console::log_1(&JsValue::from_str("Model training initiated successfully."));
-                Ok(())
-            } else {
-                let status = resp.status();
-                let body = resp.text().await.unwrap_or_default();
-                let msg = serde_json::from_str::<serde_json::Value>(&body)
-                    .ok()
-                    .and_then(|v| v["error"].as_str().map(|s| s.to_string()))
-                    .unwrap_or_else(|| format!("Training failed with status {}", status));
-                console::error_1(&JsValue::from_str(&msg));
-                Err(msg)
-            }
-        }
-        Err(e) => {
-            let msg = e.to_string();
-            console::error_1(&JsValue::from_str(&msg));
-            Err(msg)
-        }
+    if resp.ok() {
+        let body = resp.text().await.unwrap_or_default();
+        let job_id = serde_json::from_str::<serde_json::Value>(&body)
+            .ok()
+            .and_then(|v| v["job_id"].as_str().map(|s| s.to_string()))
+            .ok_or_else(|| "Missing job_id in response".to_string())?;
+        console::log_1(&JsValue::from_str(&format!("Training started, job_id: {}", job_id)));
+        Ok(job_id)
+    } else {
+        let status = resp.status();
+        let body = resp.text().await.unwrap_or_default();
+        let msg = serde_json::from_str::<serde_json::Value>(&body)
+            .ok()
+            .and_then(|v| v["error"].as_str().map(|s| s.to_string()))
+            .unwrap_or_else(|| format!("Training failed with status {}", status));
+        console::error_1(&JsValue::from_str(&msg));
+        Err(msg)
     }
+}
+
+/// Polls the status of a background training job.
+pub async fn poll_training_status(job_id: &str) -> Result<TrainingJobStatus, String> {
+    use gloo_net::http::Request;
+
+    let url = format!("{}/train/status/{}", API_BASE_URL, job_id);
+    let resp = Request::get(&url).send().await.map_err(|e| e.to_string())?;
+    parse_response(resp).await
 }
 
 pub async fn fetch_training_files() -> Result<Vec<TrainingFile>, String> {
@@ -140,3 +161,5 @@ pub async fn fetch_training_algorithms() -> Result<Vec<Algorithm>, String> {
     let resp = Request::get(&url).send().await.map_err(|e| e.to_string())?;
     parse_response(resp).await
 }
+
+

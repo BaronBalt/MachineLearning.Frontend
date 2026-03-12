@@ -6,7 +6,8 @@ use crate::{
         training_files_model::TrainingFile,
     },
     services::api::{
-        fetch_ml_models, fetch_training_algorithms, fetch_training_files, train_model,
+        fetch_ml_models, fetch_training_algorithms, fetch_training_files, poll_training_status,
+        train_model,
     },
 };
 use web_sys::{HtmlInputElement, HtmlSelectElement};
@@ -90,14 +91,20 @@ pub fn MlTrainForm(props: &MlModelListProps) -> Html {
         let algorithm_selection = algorithm_selection.clone();
         let target_column = target_column.clone();
         Callback::from(move |e: SubmitEvent| {
+            e.prevent_default();
             let is_loading = is_loading.clone();
-            is_loading.set(true);
             let on_ml_models_change = on_ml_models_change.clone();
             let on_error = on_error.clone();
             let on_model_trained = on_model_trained.clone();
             let on_success = on_success.clone();
             let trained_name = (*name_field).clone();
-            e.prevent_default();
+
+            if trained_name.trim().is_empty() {
+                on_error.emit("Please enter a name for the model.".to_string());
+                return;
+            }
+
+            is_loading.set(true);
 
             let form_data = web_sys::FormData::new().unwrap();
 
@@ -176,20 +183,40 @@ pub fn MlTrainForm(props: &MlModelListProps) -> Html {
 
             wasm_bindgen_futures::spawn_local(async move {
                 match train_model(form_data).await {
-                    Ok(()) => {
-                        gloo_timers::future::TimeoutFuture::new(1000).await;
-                        match fetch_ml_models().await {
-                            Ok(models) => {
-                                let trained = models.iter()
-                                    .find(|m| m.name.as_ref() == trained_name.as_str())
-                                    .cloned();
-                                on_ml_models_change.emit(models);
-                                if let Some(model) = trained {
-                                    on_success.emit(format!("Model \"{}\" trained successfully.", model.name));
-                                    on_model_trained.emit(model);
+                    Ok(job_id) => {
+                        // Poll until the training job completes or fails
+                        loop {
+                            gloo_timers::future::TimeoutFuture::new(2000).await;
+                            match poll_training_status(&job_id).await {
+                                Ok(job) if job.status == "complete" => {
+                                    match fetch_ml_models().await {
+                                        Ok(models) => {
+                                            let trained = models.iter()
+                                                .find(|m| m.name.as_ref() == trained_name.as_str())
+                                                .cloned();
+                                            on_ml_models_change.emit(models);
+                                            if let Some(model) = trained {
+                                                on_success.emit(format!("Model \"{}\" trained successfully.", model.name));
+                                                on_model_trained.emit(model);
+                                            }
+                                        }
+                                        Err(msg) => on_error.emit(msg),
+                                    }
+                                    break;
+                                }
+                                Ok(job) if job.status == "failed" => {
+                                    let msg = job.error.unwrap_or_else(|| "Training failed".to_string());
+                                    on_error.emit(msg);
+                                    break;
+                                }
+                                Ok(_) => {
+                                    // still pending or running — keep polling
+                                }
+                                Err(msg) => {
+                                    on_error.emit(msg);
+                                    break;
                                 }
                             }
-                            Err(msg) => on_error.emit(msg),
                         }
                     }
                     Err(msg) => on_error.emit(msg),
@@ -237,7 +264,7 @@ pub fn MlTrainForm(props: &MlModelListProps) -> Html {
                     <label>
                         {"What should the name be?"}
                     </label>
-                    <input type="text" value={(*name_field).clone()} oninput={name_field_onchange}/>
+                    <input type="text" required=true value={(*name_field).clone()} oninput={name_field_onchange} placeholder="Model name"/>
                 </div>
                 <label>
                     {"Select Training Data Source"}
